@@ -4,11 +4,9 @@ import android.graphics.Point;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.Animation.AnimationListener;
 import android.view.animation.TranslateAnimation;
@@ -66,6 +64,12 @@ public class SlideMenuActivity extends FragmentActivity {
 	
 	/** Counter of touch move. This is used to check whether swipe is vertical. */
 	private int moveCount;
+	
+	/** A flag to check can open left menu. */
+	private boolean canOpenLeft;
+	
+	/** A flag to check can open right menu. */
+	private boolean canOpenRight;
 
 	/**
 	 * Set the slide menu layout.<br/>
@@ -109,6 +113,11 @@ public class SlideMenuActivity extends FragmentActivity {
 	 * Open the left menu.
 	 */
 	public final void openLeftMenu() {
+		
+		if (!canOpenLeft) {
+			return;
+		}
+		
 		int left = (int) (mainView.getWidth() * leftPercent);
 		int endX = left - mainView.getLeft();
 		isSlid = true;
@@ -124,6 +133,11 @@ public class SlideMenuActivity extends FragmentActivity {
 	 * Open the right menu.
 	 */
 	public final void openRightMenu() {
+		
+		if (!canOpenRight) {
+			return;
+		}
+		
 		int left = (int) (-mainView.getWidth() * rightPercent);
 		int endX = left - mainView.getLeft();
 		isSlid = true;
@@ -141,6 +155,8 @@ public class SlideMenuActivity extends FragmentActivity {
 		prePoint = new Point();
 		leftPercent = -1.0f;
 		rightPercent = -1.0f;
+		setCanOpenLeft(true);
+		setCanOpenRight(true);
 		initViews();
 	}
 	/**
@@ -193,6 +209,42 @@ public class SlideMenuActivity extends FragmentActivity {
 		mainView      = (View) findViewById(R.id.__slide_main);
 		touchView     = (View) findViewById(R.id.__slide_touch);
 		touchView.setOnTouchListener(new MainViewTouchListener());
+	}
+	
+	/**
+	 * check whether can open left menu.
+	 *
+	 * @return true if can open left menu, false otherwise.
+	 */
+	public boolean canOpenLeft() {
+		return canOpenLeft;
+	}
+
+	/**
+	 * set can open left menu.
+	 *
+	 * @param canOpenLeft If true, you can open left menu.
+	 */
+	public void setCanOpenLeft(boolean canOpenLeft) {
+		this.canOpenLeft = canOpenLeft;
+	}
+
+	/**
+	 * check whether can open right menu.
+	 *
+	 * @return true if can open right menu, false otherwise.
+	 */
+	public boolean canOpenRight() {
+		return canOpenRight;
+	}
+
+	/**
+	 * set can open right menu.
+	 *
+	 * @param canOpenRight If true, you can open right menu.
+	 */
+	public void setCanOpenRight(boolean canOpenRight) {
+		this.canOpenRight = canOpenRight;
 	}
 
 	/**
@@ -316,7 +368,6 @@ public class SlideMenuActivity extends FragmentActivity {
 				if (moveCount == 0) {
 					isSlid = dx > dy;
 					moveCount++;
-					Log.d("SlideMenuActivity", "dx : " + dx + " dy : " + dy + " " + v);					
 				}
 				
 				if (!isSlid) {
@@ -329,13 +380,18 @@ public class SlideMenuActivity extends FragmentActivity {
 				if (left > 0) {
 					leftMenuView.bringToFront();
 
-					if (left > v.getWidth() * leftPercent) {
+					if (!canOpenLeft()) {
+						left = 0;
+					} else if (left > v.getWidth() * leftPercent) {
 						left = (int) (v.getWidth() * leftPercent);
 					}
+					
 				} else if (left < 0) {
 					rightMenuView.bringToFront();
 
-					if (left < -v.getWidth() * rightPercent) {
+					if (!canOpenRight()) {
+						left = 0;
+					} else if (left < -v.getWidth() * rightPercent) {
 						left = (int) (-v.getWidth() * rightPercent);
 					}
 				}
@@ -387,40 +443,18 @@ public class SlideMenuActivity extends FragmentActivity {
 			prePoint.set(tx, ty);
 			
 			if (!isSlid) {
-				callTouchEventOfAllContainedView(mainView, event);
+				mainView.dispatchTouchEvent(event);
 			} else if (moveCount == 1) {
 				// create new event to notify cancel event to children of main view.
 				// this process is called only once because cancel event commonly
 				// happens only one time.
 				MotionEvent cancelEvent = MotionEvent.obtain(event);
 				cancelEvent.setAction(MotionEvent.ACTION_CANCEL);
+				mainView.dispatchTouchEvent(cancelEvent);
 				cancelEvent.recycle();
-				callTouchEventOfAllContainedView(mainView, event);
 			}
 			
 			return true;
-		}
-		
-		/**
-		 * Call onTouchEvent() method of view and children of it.
-		 * 
-		 * @param view The View class instance used to call onTouchEvent().
-		 * @param event MotionEvent class instance notified to onTouchEvent of view.
-		 * @return onTouchEvent's return value.
-		 */
-		private boolean callTouchEventOfAllContainedView(View view, MotionEvent event) {
-			if (view instanceof ViewGroup) {
-				ViewGroup v = (ViewGroup) view;
-				
-				for (int i = 0; i < v.getChildCount(); i++) {
-					View child = v.getChildAt(i);
-					if (callTouchEventOfAllContainedView(child, event)) {
-						return true;
-					}
-				}
-			}
-			
-			return view.onTouchEvent(event);
 		}
 	}
 }
